@@ -1,0 +1,16 @@
+Metadata-Version: 1.0
+Name: gitosis-admin
+Version: 0.1
+Summary: Gitosis remote repository admin tool
+Home-page: http://www.sevenquark.com/
+Author: SevenQuark
+Author-email: sevenquark@gmail.com
+License: GPL-2
+Description: Gitosis remote repository admin tool
+Platform: UNKNOWN
+Classifier: Development Status :: 2 - Pre-Alpha
+Classifier: Environment :: Console
+Classifier: License :: OSI Approved :: GNU General Public License (GPL)
+Classifier: Operating System :: POSIX
+Classifier: Operating System :: Unix
+Classifier: Programming Language :: Python
