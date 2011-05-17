@@ -216,6 +216,7 @@ class ConsoleGitosisAdmin(GitosisAdmin):
 		self.print_repos()
 
 	def cmd_show_config(self):
+		print self.__dict__
 		self.init(self.remote)
 		print self.get_config()
 
@@ -276,11 +277,11 @@ class ConsoleGitosisAdmin(GitosisAdmin):
 		list_parser.set_defaults(func=self.cmd_list)
 
 		show_config_parser = subparsers.add_parser('show-config', help='Show gitosis.conf file')
-		show_config_parser.add_argument('remote', action='store', help='Repository hostname')
+		show_config_parser.add_argument('--remote', '-r', action='store', help='Repository hostname')
 		show_config_parser.set_defaults(func=self.cmd_show_config)
 
 		show_keys_parser = subparsers.add_parser('show-keys', help='Show ssh keys')
-		show_keys_parser.add_argument('remote', action='store', help='Repository hostname')
+		show_keys_parser.add_argument('--remote', '-r', action='store', help='Repository hostname')
 		show_keys_parser.set_defaults(func=self.cmd_show_keys)
 
 		add_repo_parser = subparsers.add_parser('add-repo', help='Add repository')
