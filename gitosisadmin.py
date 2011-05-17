@@ -44,10 +44,13 @@ class GitosisAdmin(object):
 		gitosis_conf = ConfigParser.RawConfigParser()
 		gitosis_conf.read(TMP_DIR + '/gitosis.conf')
 		for group in self.groups:
-			if not gitosis_conf.has_section(group['name']):
-				gitosis_conf.add_section(group['name'])
-			gitosis_conf.set(group['name'], 'writable', ' '.join(group['repos']))
-			gitosis_conf.set(group['name'], 'members', ' '.join(group['members']))
+			if group.has_key('del'):
+				gitosis_conf.remove_section(group['name'])
+			else:
+				if not gitosis_conf.has_section(group['name']):
+					gitosis_conf.add_section(group['name'])
+				gitosis_conf.set(group['name'], 'writable', ' '.join(group['repos']))
+				gitosis_conf.set(group['name'], 'members', ' '.join(group['members']))
 
 		with open(TMP_DIR + '/gitosis.conf', 'wb') as configfile:
 			gitosis_conf.write(configfile)
@@ -83,7 +86,7 @@ class GitosisAdmin(object):
 		group['repos'].append(repo_name)
 		self._save_config()
 		self.output.append(commands.getstatusoutput(
-			"cd %s && git commit -a -m 'Add new repository %s'"%(TMP_DIR, repo_name))
+			"cd %s && git commit -a -m 'Add new repository %s in group %s'"%(TMP_DIR, repo_name, group_name))
 		)
 		self.output.append(commands.getstatusoutput('cd %s && git push'%(TMP_DIR)))
 
@@ -98,7 +101,7 @@ class GitosisAdmin(object):
 		
 		self._save_config()
 		self.output.append(commands.getstatusoutput(
-			"cd %s && git commit -a -m 'Delete repository %s'"%(TMP_DIR, repo_name))
+			"cd %s && git commit -a -m 'Delete repository %s from group'"%(TMP_DIR, repo_name, group_name))
 		)
 		self.output.append(commands.getstatusoutput('cd %s && git push'%(TMP_DIR)))
 
@@ -118,6 +121,19 @@ class GitosisAdmin(object):
 		)
 		self.output.append(commands.getstatusoutput('cd %s && git push'%(TMP_DIR)))
 
+	def del_group(self, group_name):
+		group = self._get_group(group_name)
+		if group == None:
+			raise Exception('Group %s not found.'%(group_name))
+		
+		group['del'] = True
+
+		self._save_config()
+		self.output.append(commands.getstatusoutput(
+			"cd %s && git commit -a -m 'Delete group %s'"%(TMP_DIR, group_name))
+		)
+		self.output.append(commands.getstatusoutput('cd %s && git push'%(TMP_DIR)))
+
 	def add_member(self, group_name, member_name):
 		if self._get_key(member_name + '.pub') == None:
 			raise Exception('Key for member %s not found.'%(member_name))
@@ -134,6 +150,52 @@ class GitosisAdmin(object):
 		)
 		self.output.append(commands.getstatusoutput('cd %s && git push'%(TMP_DIR)))
 
+	def del_member(self, group_name, member_name):
+		if self._get_key(member_name + '.pub') == None:
+			raise Exception('Key for member %s not found.'%(member_name))
+		
+		group = self._get_group(group_name)
+		if group == None:
+			raise Exception('Group %s not found.'%(group_name))
+			
+		del group['members'][group['members'].index(member_name)]
+
+		self._save_config()
+		self.output.append(commands.getstatusoutput(
+			"cd %s && git commit -a -m 'Delete member %s from group %s'"%(TMP_DIR, member_name, group_name))
+		)
+		self.output.append(commands.getstatusoutput('cd %s && git push'%(TMP_DIR)))
+
+	def add_key(self, key_path, key_name):
+		if self._get_key(key_name + '.pub') != None:
+			raise Exception('Key %s already exists.'%(key_name))
+
+		key = os.path.join(TMP_DIR, 'keydir', key_name+'.pub')
+		self.output.append(commands.getstatusoutput(
+			'cp %s %s'%(key_path, key)
+		))
+		
+		self.output.append(commands.getstatusoutput(
+			"cd %s && git add %s"%(TMP_DIR, key))
+		)
+		self.output.append(commands.getstatusoutput(
+			"cd %s && git commit -a -m 'Add new ssh key %s'"%(TMP_DIR, key_name))
+		)
+		self.output.append(commands.getstatusoutput('cd %s && git push'%(TMP_DIR)))
+
+	def del_key(self, key_name):
+		if self._get_key(key_name + '.pub') == None:
+			raise Exception('Key %s not found.'%(key_name))
+
+		self.output.append(commands.getstatusoutput(
+			'rm %s'%(os.path.join(TMP_DIR, 'keydir', key_name + '.pub'))
+		))
+		
+		self.output.append(commands.getstatusoutput(
+			"cd %s && git commit -a -m 'Delete ssh key %s'"%(TMP_DIR, key_name))
+		)
+		self.output.append(commands.getstatusoutput('cd %s && git push'%(TMP_DIR)))
+
 	def get_config(self):
 		return open(os.path.join(TMP_DIR, 'gitosis.conf')).read()
 
@@ -141,75 +203,129 @@ class GitosisAdmin(object):
 		return os.listdir(os.path.join(TMP_DIR, 'keydir'))
 		
 class ConsoleGitosisAdmin(GitosisAdmin):
-	
-	def cmd_list(self):
-		self.init(self.host)
+
+	def print_repos(self):
 		for item in self.groups:
 			print '- %s (%s)'%(item['name'].replace('group ', ''), item['members'])
 			for repo in item['repos']:
 				print '    * ' + repo
-
-	def cmd_add_repo(self):
-		self.init(self.host)
-		self.add_repo(self.group, self.repo)
-
-	def cmd_del_repo(self):
-		self.init(self.host)
-		self.del_repo(self.repo)		
-
-	def cmd_add_group(self):
-		self.init(self.host)
-		self.add_group(self.group)
-
-	def cmd_add_member(self):
-		self.init(self.host)
-		self.add_member(self.group, self.member)
+	
+	# Show comands
+	def cmd_list(self):
+		self.init(self.remote)
+		self.print_repos()
 
 	def cmd_show_config(self):
-		self.init(self.host)
+		self.init(self.remote)
 		print self.get_config()
 
 	def cmd_show_keys(self):
-		self.init(self.host)
+		self.init(self.remote)
 		print '\n'.join(self.get_keys())
+
+	# Repository commands
+	def cmd_add_repo(self):
+		self.init(self.remote)
+		self.add_repo(self.group, self.repo)
+		self.print_repos()
+
+	def cmd_del_repo(self):
+		self.init(self.remote)
+		self.del_repo(self.repo)
+		self.print_repos()	
+
+	# Repository group commands
+	def cmd_add_group(self):
+		self.init(self.remote)
+		self.add_group(self.group)
+		self.print_repos()
+
+	def cmd_del_group(self):
+		self.init(self.remote)
+		self.del_group(self.group)
+		self.print_repos()
+
+	# Member commands
+	def cmd_add_member(self):
+		self.init(self.remote)
+		self.add_member(self.group, self.member)
+		self.print_repos()
+
+	def cmd_del_member(self):
+		self.init(self.remote)
+		self.del_member(self.group, self.member)
+		self.print_repos()
+
+	# ssh key commands
+	def cmd_add_key(self):
+		self.init(self.remote)
+		self.add_key(self.key, self.name)
+		print self.get_keys()
+
+	def cmd_del_key(self):
+		self.init(self.remote)
+		self.del_key(self.name)
+		print self.get_keys()
 
 	def __init__(self):
 		parser = argparse.ArgumentParser(description='Gitosis remote repository admin tool.')
 		subparsers = parser.add_subparsers(help='commands')
 	
 		list_parser = subparsers.add_parser('list', help='List repositories')
-		list_parser.add_argument('host', action='store', help='Repository hostname')
+		list_parser.add_argument('remote', action='store', help='Repository hostname')
 		list_parser.set_defaults(func=self.cmd_list)
 
-		show_config_parser = subparsers.add_parser('show_config', help='Show gitosis.conf file')
-		show_config_parser.add_argument('host', action='store', help='Repository hostname')
+		show_config_parser = subparsers.add_parser('show-config', help='Show gitosis.conf file')
+		show_config_parser.add_argument('remote', action='store', help='Repository hostname')
 		show_config_parser.set_defaults(func=self.cmd_show_config)
 
-		show_keys_parser = subparsers.add_parser('show_keys', help='Show ssh keys')
-		show_keys_parser.add_argument('host', action='store', help='Repository hostname')
+		show_keys_parser = subparsers.add_parser('show-keys', help='Show ssh keys')
+		show_keys_parser.add_argument('remote', action='store', help='Repository hostname')
 		show_keys_parser.set_defaults(func=self.cmd_show_keys)
 
 		add_repo_parser = subparsers.add_parser('add-repo', help='Add repository')
 		add_repo_parser.add_argument('repo', action='store', help='Repository name')		
-		add_repo_parser.add_argument('-group', action='store', help='Repository group')
-		add_repo_parser.add_argument('-host', action='store', help='Repository hostname')
+		add_repo_parser.add_argument('--group', '-g', action='store', help='Repository group')
+		add_repo_parser.add_argument('--remote', '-r', action='store', help='Repository hostname')
 		add_repo_parser.set_defaults(func=self.cmd_add_repo)
 
-		del_repo_parser = subparsers.add_parser('del-repo', help='Del repository')
+		del_repo_parser = subparsers.add_parser('del-repo', help='Delete repository')
 		del_repo_parser.add_argument('repo', action='store', help='Repository name')		
-		del_repo_parser.add_argument('-host', action='store', help='Repository hostname')
+		del_repo_parser.add_argument('--remote', '-r', action='store', help='Repository hostname')
 		del_repo_parser.set_defaults(func=self.cmd_del_repo)		
 
 		add_group_parser = subparsers.add_parser('add-group', help='Add repository group')
 		add_group_parser.add_argument('group', action='store', help='Repository group')
-		add_group_parser.add_argument('-host', action='store', help='Repository hostname')
+		add_group_parser.add_argument('--remote', '-r', action='store', help='Repository hostname')
 		add_group_parser.set_defaults(func=self.cmd_add_group)
+
+		del_group_parser = subparsers.add_parser('del-group', help='Delete repository group')
+		del_group_parser.add_argument('group', action='store', help='Repository group')
+		del_group_parser.add_argument('--remote', '-r', action='store', help='Repository hostname')
+		del_group_parser.set_defaults(func=self.cmd_del_group)
 
 		add_member_parser = subparsers.add_parser('add-member', help='Add member to group')
 		add_member_parser.add_argument('member', action='store', help='Group member')
-		add_member_parser.add_argument('-group', action='store', help='Repository group')
-		add_member_parser.add_argument('-host', action='store', help='Repository hostname')
+		add_member_parser.add_argument('--group', '-g', action='store', help='Repository group')
+		add_member_parser.add_argument('--remote', '-r', action='store', help='Repository hostname')
 		add_member_parser.set_defaults(func=self.cmd_add_member)
+
+		del_member_parser = subparsers.add_parser('del-member', help='Delete member from group')
+		del_member_parser.add_argument('member', action='store', help='Group member')
+		del_member_parser.add_argument('--group', '-g', action='store', help='Repository group')
+		del_member_parser.add_argument('--remote', '-r', action='store', help='Repository hostname')
+		del_member_parser.set_defaults(func=self.cmd_del_member)
+
+		add_key_parser = subparsers.add_parser('add-key', help='Add new public ssh key')
+		add_key_parser.add_argument('key', action='store', help='Public ssh key file')
+		add_key_parser.add_argument('--name', '-n', action='store', help='Key name')
+		add_key_parser.add_argument('--remote', '-r', action='store', help='Repository hostname')
+		add_key_parser.set_defaults(func=self.cmd_add_key)
+
+		del_key_parser = subparsers.add_parser('del-key', help='Delete ssh key file and members from groups')
+		del_key_parser.add_argument('name', action='store', help='Key name')
+		del_key_parser.add_argument('--remote', '-r', action='store', help='Repository hostname')
+		del_key_parser.set_defaults(func=self.cmd_del_key)
 
 		parser.parse_args(namespace=self)
 		self.func()
