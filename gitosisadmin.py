@@ -5,6 +5,7 @@ import getopt, sys, os
 import ConfigParser
 import argparse
 
+
 GITOSIS_DIR = 'gitosis-admin'
 TMP_DIR = '/tmp/' + GITOSIS_DIR
 
