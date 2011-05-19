@@ -110,7 +110,7 @@ class GitosisAdmin(object):
 			raise Exception('Group %s aleady exists.'%(group_name))
 		
 		self.groups.append({
-			'name':group_name,
+			'name':'group ' + group_name,
 			'repos':'',
 			'members':'',
 		})
