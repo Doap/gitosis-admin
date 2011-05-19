@@ -10,7 +10,8 @@ setup(
 	author='SevenQuark',
 	author_email='sevenquark@gmail.com',
 	url='http://www.sevenquark.com/',
-	packages=[ 'gitosisadmin', ],
+	scripts=['gitosisadmin.py'],
+	packages=[],
  
 	classifiers=(
 		'Development Status :: 2 - Pre-Alpha',
