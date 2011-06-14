@@ -102,7 +102,7 @@ class GitosisAdmin(object):
 		
 		self._save_config()
 		self.output.append(commands.getstatusoutput(
-			"cd %s && git commit -a -m 'Delete repository %s from group'"%(TMP_DIR, repo_name, group_name))
+			"cd %s && git commit -a -m 'Delete repository %s from group'"%(TMP_DIR, repo_name))
 		)
 		self.output.append(commands.getstatusoutput('cd %s && git push'%(TMP_DIR)))
 
