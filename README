@@ -1,0 +1,34 @@
+Key file in ~/.ssh/id_rsa
+
+List repositories:
+gitosisadmin.py list gitosis@remoterepo.com
+
+Add new group:
+gitosisadmin.py add-group group -r gitosis@remoterepo.com
+
+Add new repo:
+gitosisadmin.py add-repo newrepo -g group -r gitosis@remoterepo.com
+
+Remove group:
+gitosisadmin.py del-group group -r gitosis@remoterepo.com
+
+Remove repo:
+gitosisadmin.py del-repo repo -r gitosis@remoterepo.com
+
+Add key(does not add a member):
+gitosisadmin.py add-key /path/to/key/id_rsa.pub -n keyname -r gitosis@remoterepo.com
+
+Remove key:
+gitosisadmin.py del-key keyname -r gitosis@remoterepo.com
+
+Add member (membername = keyname):
+gitosisadmin.py add-member membername -g group -r gitosis@remoterepo.com
+
+Remove member:
+gitosisadmin.py del-member member -g group -r gitosis@remoterepo.com
+
+Show config (gitosis.conf):
+gitosisadmin.py show-config -r gitosis@remoterepo.com
+
+Show keys (files in keydir):
+gitosisadmin.py show-keys -r gitosis@remoterepo.com
